@@ -54,7 +54,7 @@ class Profile(models.Model):
 
     @staticmethod
     def get_top_users(limit=10):
-        return Profile.objects.order_by("-points").select_related("user")[:limit]
+        return Profile.objects.order_by("-points", "id").select_related("user")[:limit]
 
     def update_points(self):
         from core.models import Chat
@@ -65,15 +65,26 @@ class Profile(models.Model):
             )["score__sum"]
             or 0
         )
-        self.points = total_points
-        self.save()
+        if self.points != total_points:
+            self.points = total_points
+            self.save(update_fields=["points"])
+            self.update_ranks()
+
+    @classmethod
+    def update_ranks(cls):
+        profiles = cls.objects.order_by("-points", "id")
+        rank = 1
+        for profile in profiles:
+            if profile.rank != rank:
+                profile.rank = rank
+                profile.save(update_fields=["rank"])
+            rank += 1
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
         super().save(*args, **kwargs)
-        Profile.objects.filter(points__gt=self.points).update(rank=F("rank") + 1)
-        self.rank = Profile.objects.filter(points__gt=self.points).count() + 1
-        Profile.objects.filter(points__lt=self.points).update(rank=F("rank") + 1)
-        super().save(update_fields=["rank"])
+        if is_new or "points" in kwargs.get("update_fields", []):
+            self.update_ranks()
 
 
 @receiver(post_save, sender=CustomUser)

@@ -10,13 +10,13 @@ import API_ENDPOINTS from '@/lib/apiEndpoints'
 interface User {
     username: string;
     email: string;
-  }
-  
-  interface Profile {
+}
+
+interface Profile {
     user: User;
     points: number;
     rank: number;
-  }
+}
 
 export default function Header() {
     const { isLoggedIn, setIsLoggedIn } = useAuth();
@@ -31,30 +31,28 @@ export default function Header() {
 
     useEffect(() => {
         const fetchUserData = async () => {
-            if (pathname === '/' && isLoggedIn) {
-                try {
-                    const token = getAccessToken();
-                    if (!token) {
-                        throw new Error('No access token available');
-                    }
-
-                    const response = await fetch(API_ENDPOINTS.MY_PROFILE, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch user data');
-                    }
-
-                    const data = await response.json();
-                    setProfileData(data);
-                } catch (error) {
-                    console.error('Error fetching user data:', error);
-                    setIsLoggedIn(false);
-                    setProfileData(null);
+            try {
+                const token = getAccessToken();
+                if (!token) {
+                    throw new Error('No access token available');
                 }
+
+                const response = await fetch(API_ENDPOINTS.MY_PROFILE, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user data');
+                }
+
+                const data = await response.json();
+                setProfileData(data);
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                setIsLoggedIn(false);
+                setProfileData(null);
             }
         };
 
