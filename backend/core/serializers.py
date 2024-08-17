@@ -24,6 +24,7 @@ class ChatSerializer(serializers.ModelSerializer):
             "feedback",
             "is_finished",
             "messages",
+            "difficulty",
         ]
         read_only_fields = [
             "doctor",
