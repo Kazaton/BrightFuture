@@ -1,9 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy as _
-from django.db.models import F
+from django.db.models import F, Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
 
 class UserManager(BaseUserManager):
     """Define a model manager for User model with no username field."""
@@ -55,6 +56,18 @@ class Profile(models.Model):
     def get_top_users(limit=10):
         return Profile.objects.order_by("-points").select_related("user")[:limit]
 
+    def update_points(self):
+        from core.models import Chat
+
+        total_points = (
+            Chat.objects.filter(doctor=self.user, is_finished=True).aggregate(
+                Sum("score")
+            )["score__sum"]
+            or 0
+        )
+        self.points = total_points
+        self.save()
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         Profile.objects.filter(points__gt=self.points).update(rank=F("rank") + 1)
@@ -72,3 +85,9 @@ def create_user_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=CustomUser)
 def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
+
+
+@receiver(post_save, sender="core.Chat")
+def update_profile_points(sender, instance, **kwargs):
+    if instance.is_finished:
+        instance.doctor.profile.update_points()

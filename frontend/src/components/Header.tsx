@@ -71,8 +71,6 @@ export default function Header() {
                             <Link href="/profile" className="mr-4">Profile</Link>
                             <button onClick={handleLogout} className="text-blue-500 hover:text-blue-700">Logout</button>
                         </>
-                    ) : isLoggedIn ? (
-                        <p>Loading...</p>
                     ) : (
                         <>
                             <Link href="/login" className="mr-4">Login</Link>

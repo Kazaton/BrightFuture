@@ -36,11 +36,14 @@ class ProfileViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["GET"])
     def my_profile(self, request):
         profile, created = Profile.objects.get_or_create(user=request.user)
+        profile.update_points()
         serializer = self.get_serializer(profile)
         return Response(serializer.data)
 
     @action(detail=False, methods=["GET"])
     def top_users(self, request):
         top_profiles = Profile.get_top_users()
+        for profile in top_profiles:
+            profile.update_points()
         serializer = self.get_serializer(top_profiles, many=True)
         return Response(serializer.data)
