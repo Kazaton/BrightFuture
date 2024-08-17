@@ -1,22 +1,49 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser
+from .models import CustomUser, Profile
+
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = "Profile"
+
 
 class CustomUserAdmin(UserAdmin):
-    model = CustomUser
-    list_display = ['username', 'email', 'is_staff', 'is_active']
-    list_filter = ['is_staff', 'is_active']
+    inlines = (ProfileInline,)
+    list_display = (
+        "email",
+        "username",
+        "is_staff",
+        "is_active",
+    )
+    list_filter = (
+        "is_staff",
+        "is_active",
+    )
     fieldsets = (
-        (None, {'fields': ('username', 'email', 'password')}),
-        ('Permissions', {'fields': ('is_staff', 'is_active', 'groups', 'user_permissions')}),
+        (None, {"fields": ("email", "username", "password")}),
+        ("Permissions", {"fields": ("is_staff", "is_active")}),
     )
     add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'is_staff', 'is_active')}
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "username",
+                    "password1",
+                    "password2",
+                    "is_staff",
+                    "is_active",
+                ),
+            },
         ),
     )
-    search_fields = ('username', 'email')
-    ordering = ('username',)
+    search_fields = ("email",)
+    ordering = ("email",)
+
 
 admin.site.register(CustomUser, CustomUserAdmin)
+admin.site.register(Profile)
