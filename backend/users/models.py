@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy as _
+from django.db.models import F
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 class UserManager(BaseUserManager):
     """Define a model manager for User model with no username field."""
@@ -42,5 +45,30 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = []
     objects = UserManager()
 
+
 class Profile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    points = models.IntegerField(default=0)
+    rank = models.IntegerField(default=1)
+
+    @staticmethod
+    def get_top_users(limit=10):
+        return Profile.objects.order_by("-points").select_related("user")[:limit]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        Profile.objects.filter(points__gt=self.points).update(rank=F("rank") + 1)
+        self.rank = Profile.objects.filter(points__gt=self.points).count() + 1
+        Profile.objects.filter(points__lt=self.points).update(rank=F("rank") + 1)
+        super().save(update_fields=["rank"])
+
+
+@receiver(post_save, sender=CustomUser)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=CustomUser)
+def save_user_profile(sender, instance, **kwargs):
+    instance.profile.save()

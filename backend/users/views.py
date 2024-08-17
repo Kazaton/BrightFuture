@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import CustomUser, Profile
 from .serializers import (
     CustomUserSerializer,
@@ -25,10 +26,21 @@ class CustomUserViewSet(viewsets.ModelViewSet):
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == "top_users":
+            return [AllowAny()]
+        return super().get_permissions()
 
-def update_leaderboard():
-    users = CustomUser.objects.order_by("-points")
-    for index, user in enumerate(users, start=1):
-        user.rank = index
-        user.save()
+    @action(detail=False, methods=["GET"])
+    def my_profile(self, request):
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["GET"])
+    def top_users(self, request):
+        top_profiles = Profile.get_top_users()
+        serializer = self.get_serializer(top_profiles, many=True)
+        return Response(serializer.data)
