@@ -1,4 +1,6 @@
+// src/app/game/page.tsx
+import GameClient from './GameClient';
 
-export default function Game() {
-  return <h1>Негры кабинет</h1>
+export default function GamePage() {
+  return <GameClient />;
 }
