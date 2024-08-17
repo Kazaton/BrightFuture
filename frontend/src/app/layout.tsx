@@ -21,7 +21,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <Header profile={null} />
+          <Header />
           <main className="min-h-screen">
             {children}
           </main>
