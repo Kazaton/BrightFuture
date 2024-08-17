@@ -1,78 +1,104 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import API_ENDPOINTS from '@/lib/apiEndpoints';
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import API_ENDPOINTS from '@/lib/apiEndpoints'
 
 export default function RegisterForm() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const router = useRouter();
+    const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const router = useRouter()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        try {
+            const response = await fetch(API_ENDPOINTS.REGISTER, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+            })
 
-    try {
-      const response = await fetch(API_ENDPOINTS.REGISTER, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Registration failed');
-      }
-
-      router.push('/login');
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+            if (response.ok) {
+                router.push('/login')
+            } else {
+                console.error('Registration failed')
+            }
+        } catch (error) {
+            console.error('Error during registration:', error)
+        }
     }
-  };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="username" className="block mb-2">Username</label>
-        <input
-          type="text"
-          id="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label htmlFor="email" className="block mb-2">Email</label>
-        <input
-          type="email"
-          id="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label htmlFor="password" className="block mb-2">Password</label>
-        <input
-          type="password"
-          id="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      {error && <p className="text-red-500">{error}</p>}
-      <button type="submit" className="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">
-        Register
-      </button>
-    </form>
-  );
+    return (
+        <div className="flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-md w-full space-y-8">
+                <div>
+                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                        Создайте свой аккаунт
+                    </h2>
+                </div>
+                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <input type="hidden" name="remember" value="true" />
+                    <div className="rounded-md shadow-sm -space-y-px">
+                        <div>
+                            <label htmlFor="username" className="sr-only">
+                                Имя пользователя
+                            </label>
+                            <input
+                                id="username"
+                                name="username"
+                                type="text"
+                                required
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="Имя пользователя"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="email-address" className="sr-only">
+                                Электронная почта
+                            </label>
+                            <input
+                                id="email-address"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="Электронная почта"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="password" className="sr-only">
+                                Пароль
+                            </label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autoComplete="new-password"
+                                required
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="Пароль"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <button
+                            type="submit"
+                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            Зарегистрироваться
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
 }
