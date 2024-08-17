@@ -15,6 +15,7 @@ class Chat(models.Model):
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
     diagnosis = models.CharField(max_length=100, null=True, blank=True)
+    correct_diagnosis = models.CharField(max_length=100)
     score = models.IntegerField(null=True, blank=True)
     feedback = models.TextField(null=True, blank=True)
     is_finished = models.BooleanField(default=False)
