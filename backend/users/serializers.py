@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.core.exceptions import ValidationError
 from .models import CustomUser, Profile
 from django.utils.translation import gettext_lazy as _
 

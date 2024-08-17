@@ -64,17 +64,17 @@ export default function Header() {
     return (
         <header className="bg-white shadow-md">
             <nav className="container mx-auto px-4 py-4 flex justify-between items-center">
-                <Link href="/" className="text-xl font-bold">Medical Game</Link>
+                <Link href="/" className="text-xl font-bold">EduMed</Link>
                 <div>
                     {userData ? (
                         <>
-                            <Link href="/profile" className="mr-4">Profile</Link>
-                            <button onClick={handleLogout} className="text-blue-500 hover:text-blue-700">Logout</button>
+                            <Link href="/profile" className="mr-4">Профиль</Link>
+                            <button onClick={handleLogout} className="text-blue-500 hover:text-blue-700">Выйти</button>
                         </>
                     ) : (
                         <>
-                            <Link href="/login" className="mr-4">Login</Link>
-                            <Link href="/register">Register</Link>
+                            <Link href="/login" className="mr-4">Логин</Link>
+                            <Link href="/register">Регистрация</Link>
                         </>
                     )}
                 </div>
