@@ -42,8 +42,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["GET"])
     def top_users(self, request):
+        Profile.update_ranks()  # Обновляем ранги перед получением топ пользователей
         top_profiles = Profile.get_top_users()
-        for profile in top_profiles:
-            profile.update_points()
         serializer = self.get_serializer(top_profiles, many=True)
         return Response(serializer.data)

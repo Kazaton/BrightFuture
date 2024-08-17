@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Chat, Message
 import json
 
+
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
@@ -10,6 +11,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
 class ChatSerializer(serializers.ModelSerializer):
     messages = MessageSerializer(many=True, read_only=True)
+    doctor = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Chat

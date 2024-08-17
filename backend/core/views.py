@@ -20,9 +20,29 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 class ChatViewSet(viewsets.ModelViewSet):
-    queryset = Chat.objects.all()
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Chat.objects.all()
+
+    def get_queryset(self):
+        return Chat.objects.filter(doctor=self.request.user)
+
+    def check_object_permissions(self, request, obj):
+        if obj.doctor != request.user:
+            raise PermissionDenied("You do not have permission to access this chat.")
+        return super().check_object_permissions(request, obj)
+
+    def list(self, request, *args, **kwargs):
+        logger.info(f"User {request.user.id} requested chat list")
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        logger.info(f"User {request.user.id} requested chat {kwargs.get('pk')}")
+        return super().retrieve(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        logger.info(f"User {request.user.id} is creating a new chat")
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         patient_data = self.generate_patient()
@@ -113,7 +133,7 @@ class ChatViewSet(viewsets.ModelViewSet):
         Окончательный диагноз врача: {doctor_answer}
 
         Дайте оценку в формате:
-        Оценка: [сумма баллов по всем критериям]
+        Оценка: [сумма баллов по всем критериям, 0-5000 баллов]
         Обратная связь: [краткий комментарий по каждому критерию]"""
 
         response = client.chat.completions.create(

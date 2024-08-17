@@ -1,17 +1,20 @@
-"use client";
+"use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import API_ENDPOINTS from '@/lib/apiEndpoints';
-import { getAccessToken } from '@/lib/authUtils';
+import { getAccessToken, logout, refreshAccessToken } from '@/lib/authUtils';
 import SidePanel from '@/components/SidePanel';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface Message {
   id: number;
   sender: string;
   content: string;
   timestamp: string;
+  isResultMessage?: boolean;
 }
 
 interface Chat {
@@ -29,12 +32,22 @@ const GameClient: React.FC = () => {
   const [pastGames, setPastGames] = useState<Chat[]>([]);
   const [inputMessage, setInputMessage] = useState<string>('');
   const [diagnosis, setDiagnosis] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     checkAuthentication();
   }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chat?.messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const checkAuthentication = async () => {
     const token = getAccessToken();
@@ -45,11 +58,10 @@ const GameClient: React.FC = () => {
 
     try {
       await axios.get(API_ENDPOINTS.MY_PROFILE, getAuthHeaders());
-      setIsLoading(false);
       loadPastGames();
     } catch (error) {
       console.error('Authentication error:', error);
-      router.push('/login');
+      handleAuthError();
     }
   };
 
@@ -60,15 +72,52 @@ const GameClient: React.FC = () => {
     };
   };
 
+  const handleAuthError = async () => {
+    try {
+      await refreshAccessToken();
+      // Если обновление токена успешно, повторно загрузим данные
+      loadPastGames();
+    } catch (refreshError) {
+      console.error('Token refresh failed:', refreshError);
+      logout();
+      setChat(null);
+      setPastGames([]);
+      setError('Ошибка аутентификации. Пожалуйста, войдите снова.');
+      router.push('/login');
+    }
+  };
+
   const loadPastGames = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.get<Chat[]>(API_ENDPOINTS.PAST_GAMES, getAuthHeaders());
       setPastGames(response.data);
       if (response.data.length > 0) {
         setChat(response.data[0]);
+      } else {
+        setChat({
+          id: 0,
+          messages: [{
+            id: 0,
+            sender: 'patient',
+            content: 'У вас пока нет активных игр. Нажмите "Новая игра" в боковой панели, чтобы начать.',
+            timestamp: new Date().toISOString()
+          }],
+          is_finished: false,
+          diagnosis: null,
+          score: null,
+          feedback: null,
+          start_time: new Date().toISOString()
+        });
       }
     } catch (error) {
       console.error('Error loading past games:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        await handleAuthError();
+      } else {
+        setError('Ошибка при загрузке прошлых игр. Пожалуйста, попробуйте позже.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -76,37 +125,51 @@ const GameClient: React.FC = () => {
 
   const loadGame = async (gameId: number) => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.get<Chat>(`${API_ENDPOINTS.CHATS}${gameId}/`, getAuthHeaders());
       setChat(response.data);
     } catch (error) {
       console.error('Error loading game:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleAuthError();
+      } else {
+        setError('Ошибка при загрузке игры. Пожалуйста, попробуйте позже.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const createNewChat = async () => {
+  const createNewChat = async (difficulty: string) => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.post<Chat>(
         API_ENDPOINTS.NEW_CHAT,
-        { difficulty: 'easy' },
+        { difficulty },
         getAuthHeaders()
       );
       setChat(response.data);
       setPastGames(prevGames => [response.data, ...prevGames]);
     } catch (error) {
       console.error('Error creating new chat:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleAuthError();
+      } else {
+        setError('Ошибка при создании новой игры. Пожалуйста, попробуйте позже.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const sendMessage = async (): Promise<void> => {
+  const sendMessage = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
     if (inputMessage.trim() === '' || !chat || chat.is_finished) return;
 
     setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.post<Message>(
         API_ENDPOINTS.SEND_MESSAGE(chat.id),
@@ -120,124 +183,151 @@ const GameClient: React.FC = () => {
       setInputMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleAuthError();
+      } else {
+        setError('Ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !isLoading) {
-      sendMessage();
-    }
-  };
-
-  const endGame = async (): Promise<void> => {
+  const endGame = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
     if (!chat || chat.is_finished) return;
 
     setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.post<{ score: number; feedback: string }>(
         API_ENDPOINTS.END_GAME(chat.id),
         { answer: diagnosis },
         getAuthHeaders()
       );
+
+      const resultMessage: Message = {
+        id: Date.now(),
+        sender: 'system',
+        content: `Игра завершена. Диагноз: ${diagnosis}. Оценка: ${response.data.score}. Обратная связь: ${response.data.feedback}`,
+        timestamp: new Date().toISOString(),
+        isResultMessage: true
+      };
+
       const updatedChat = {
         ...chat,
         is_finished: true,
         diagnosis: diagnosis,
         score: response.data.score,
-        feedback: response.data.feedback
+        feedback: response.data.feedback,
+        messages: [...chat.messages, resultMessage]
       };
+
+      await saveUpdatedChat(updatedChat);
+
       setChat(updatedChat);
       setPastGames(prevGames =>
         prevGames.map(game => game.id === chat.id ? updatedChat : game)
       );
+
+      setDiagnosis('');
     } catch (error) {
       console.error('Error ending game:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleAuthError();
+      } else {
+        setError('Ошибка при завершении игры. Пожалуйста, попробуйте еще раз.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading && !chat) {
-    return <div>Загрузка...</div>;
-  }
+  const saveUpdatedChat = async (updatedChat: Chat) => {
+    try {
+      await axios.put(`${API_ENDPOINTS.CHATS}${updatedChat.id}/`, updatedChat, getAuthHeaders());
+    } catch (error) {
+      console.error('Error saving updated chat:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleAuthError();
+      } else {
+        setError('Ошибка при сохранении результатов игры. Пожалуйста, попробуйте еще раз.');
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setChat(null);
+    setPastGames([]);
+    router.push('/login');
+  };
+
+
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div className="flex h-screen bg-gray-100">
       <SidePanel
         games={pastGames}
         currentGameId={chat?.id || null}
         onGameSelect={loadGame}
         onNewGame={createNewChat}
       />
-      <div style={{ flexGrow: 1, padding: '20px' }}>
-        <h1>Виртуальный кабинет врача</h1>
-        {chat ? (
-          <div>
-            <div>
+      <div className="flex-grow flex flex-col overflow-hidden w-4/5">
+        <div className="bg-white shadow-md p-4">
+          <h1 className="text-2xl font-bold">Виртуальный кабинет врача</h1>
+        </div>
+        <div className="flex-grow overflow-y-auto p-4">
+          {chat && (
+            <>
               {chat.messages.map((message) => (
-                <div key={message.id} style={{
-                  marginBottom: '10px',
-                  textAlign: message.sender === 'doctor' ? 'right' : 'left',
-                  backgroundColor: message.sender === 'doctor' ? '#e6f2ff' : '#f0f0f0',
-                  padding: '8px',
-                  borderRadius: '5px'
-                }}>
-                  {message.content}
+                <div
+                  key={message.id}
+                  className={`mb-4 ${message.sender === 'doctor' ? 'text-right' : 'text-left'
+                    }`}
+                >
+                  <div
+                    className={`inline-block p-3 rounded-lg ${message.sender === 'doctor'
+                      ? 'bg-blue-500 text-white'
+                      : message.isResultMessage
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-300 text-black'
+                      }`}
+                  >
+                    {message.content}
+                  </div>
                 </div>
               ))}
-            </div>
-            {!chat.is_finished ? (
-              <div style={{ display: 'flex', marginTop: '20px' }}>
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Введите сообщение..."
-                  style={{ flexGrow: 1, marginRight: '10px', padding: '8px' }}
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={sendMessage}
-                  style={{ padding: '8px 16px' }}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Отправка...' : 'Отправить'}
-                </button>
-              </div>
-            ) : (
-              <div>
-                <h2>Игра завершена</h2>
-                <p>Ваш диагноз: {chat.diagnosis}</p>
-                <p>Оценка: {chat.score}</p>
-                <p>Обратная связь: {chat.feedback}</p>
-              </div>
-            )}
-            {!chat.is_finished && (
-              <div style={{ marginTop: '20px' }}>
-                <input
-                  type="text"
-                  value={diagnosis}
-                  onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="Введите ваш диагноз"
-                  style={{ marginRight: '10px', padding: '8px' }}
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={endGame}
-                  style={{ padding: '8px 16px' }}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Завершение...' : 'Завершить игру'}
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div>
-            <p>У вас пока нет активных игр. Нажмите "Новая игра" в боковой панели, чтобы начать.</p>
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
+        {chat && !chat.is_finished && (
+          <div className="p-4 bg-white border-t space-y-2">
+            <form onSubmit={sendMessage} className="flex space-x-2">
+              <Input
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Введите сообщение..."
+                className="flex-grow"
+                disabled={isLoading}
+              />
+              <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 w-32">
+                {isLoading ? 'Отправка...' : 'Отправить'}
+              </Button>
+            </form>
+            <form onSubmit={endGame} className="flex space-x-2">
+              <Input
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                placeholder="Введите ваш диагноз"
+                className="flex-grow"
+                disabled={isLoading}
+              />
+              <Button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 w-32">
+                {isLoading ? 'Завершение...' : 'Завершить игру'}
+              </Button>
+            </form>
           </div>
         )}
       </div>

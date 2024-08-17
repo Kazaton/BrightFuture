@@ -10,10 +10,10 @@ class CustomUserSerializer(serializers.ModelSerializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(
         label=_("Password"),
-        style={'input_type': 'password'},
+        style={"input_type": "password"},
         trim_whitespace=True,
         max_length=128,
-        write_only=True
+        write_only=True,
     )
 
     class Meta:
@@ -23,12 +23,12 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     user = CustomUserSerializer(read_only=True)
-    points = serializers.IntegerField(default=0)
-    place = serializers.IntegerField(default=1)
+    points = serializers.IntegerField(read_only=True)
+    rank = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Profile
-        fields = ("id", "user", "points", "place")
+        fields = ("id", "user", "points", "rank")
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
