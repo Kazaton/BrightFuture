@@ -6,6 +6,7 @@ import API_ENDPOINTS from '@/lib/apiEndpoints';
 
 export default function RegisterForm() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function RegisterForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, email, password }),
       });
 
       if (!response.ok) {
@@ -42,6 +43,17 @@ export default function RegisterForm() {
           id="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          required
+          className="w-full p-2 border rounded"
+        />
+      </div>
+      <div>
+        <label htmlFor="email" className="block mb-2">Email</label>
+        <input
+          type="email"
+          id="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
           className="w-full p-2 border rounded"
         />
