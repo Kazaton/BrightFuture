@@ -170,23 +170,45 @@ const GameClient: React.FC = () => {
 
     setIsLoading(true);
     setError(null);
+
+    // Создаем временное сообщение врача
+    const tempDoctorMessage: Message = {
+      id: Date.now(), // Временный ID
+      sender: 'doctor',
+      content: inputMessage,
+      timestamp: new Date().toISOString()
+    };
+
+    // Немедленно обновляем локальное состояние
+    setChat(prevChat => ({
+      ...prevChat!,
+      messages: [...prevChat!.messages, tempDoctorMessage]
+    }));
+
     try {
       const response = await axios.post<Message>(
         API_ENDPOINTS.SEND_MESSAGE(chat.id),
         { content: inputMessage },
         getAuthHeaders()
       );
+
+      // Обновляем чат с ответом пациента
       setChat(prevChat => ({
         ...prevChat!,
         messages: [...prevChat!.messages, response.data]
       }));
+
       setInputMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        handleAuthError();
+        await handleAuthError();
       } else {
         setError('Ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.');
+        setChat(prevChat => ({
+          ...prevChat!,
+          messages: prevChat!.messages.filter(msg => msg.id !== tempDoctorMessage.id)
+        }));
       }
     } finally {
       setIsLoading(false);
